@@ -7,7 +7,7 @@ import speechAssistant from "../images/speech-assistant.png";
 import documentScanner from "../images/document-scanner.png";
 import cameraNavigation from "../images/camera-navigation.png";
 import resourceLibrary from "../images/resource-library.png";
-import illustration from "../images/illustration.png";
+import illustration from "../images/Illustration.png";
 import story from "../images/story.png";
 
 export default function FeatureSection() {
