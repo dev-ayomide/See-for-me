@@ -7,7 +7,7 @@ import Grayeye from "../images/gray-eye.png"
 import Normaldoc from "../images/normal-doc.png"
 import Bluedoc from "../images/blue-doc.png"
 import Graydoc from "../images/gray-doc.png"
-import Objects from "../images/objects.png"
+import Objects from "../images/OBJECTS.png"
 import ColorBlindnessUploader from "./ColorBlindnessUploader"
 import { useNavigate } from "react-router-dom"
 
