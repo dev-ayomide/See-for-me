@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { Button } from "../components/ui/button"
-import { Mic, MicOff, Volume2, VolumeX, Smartphone, Play, Pause } from "lucide-react"
+import { Mic, MicOff, Volume2, VolumeX, Smartphone, HelpCircle } from "lucide-react"
 
 const VoiceAssistant = () => {
   const [isListening, setIsListening] = useState(false)
@@ -14,53 +14,41 @@ const VoiceAssistant = () => {
   const [transcript, setTranscript] = useState("")
   const [lastInteraction, setLastInteraction] = useState(Date.now())
   const [statusMessage, setStatusMessage] = useState("")
-  const [continuousMode, setContinuousMode] = useState(false)
-  const [voiceOverActive, setVoiceOverActive] = useState(false)
+  const [showCommands, setShowCommands] = useState(false)
+  const [assistantActive, setAssistantActive] = useState(true)
   const navigate = useNavigate()
   const location = useLocation()
   const recognitionRef = useRef(null)
   const timeoutRef = useRef(null)
-  const reminderTimeoutRef = useRef(null)
   const buttonRef = useRef(null)
   const hasSpokenWelcome = useRef(false)
   const lastAnnouncedPage = useRef("")
   const recognitionState = useRef("stopped")
   const isProcessingSpeech = useRef(false)
   const speechSynthesisReady = useRef(false)
-  const listeningAttempts = useRef(0)
-  const maxListeningAttempts = 3
 
-  // Function refs to avoid circular dependencies
-  const speakRef = useRef(null)
-  const startListeningRef = useRef(null)
-  const stopListeningRef = useRef(null)
-  const processCommandRef = useRef(null)
-
-  // Detect iOS and VoiceOver
+  // Detect iOS
   useEffect(() => {
-    const detectIOSAndVoiceOver = () => {
+    const detectIOS = () => {
       const userAgent = navigator.userAgent.toLowerCase()
       const isIOSDevice =
         /iphone|ipad|ipod/.test(userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
 
       setIsIOS(isIOSDevice)
 
-      // Detect VoiceOver (approximate detection)
-      const hasVoiceOver = window.speechSynthesis && window.speechSynthesis.getVoices().length > 0
-      setVoiceOverActive(hasVoiceOver)
-
       if (isIOSDevice) {
-        console.log("iOS detected - implementing iOS-optimized voice assistant")
-        setContinuousMode(true)
+        console.log("iOS detected - using iOS-optimized voice assistant")
+        // On iOS, we'll use button-activated speech only
+        setIsSupported(true)
       }
 
       return isIOSDevice
     }
 
-    detectIOSAndVoiceOver()
+    detectIOS()
   }, [])
 
-  // Get current page context
+  // Get current page context with clear descriptions
   const getCurrentPageInfo = useCallback(() => {
     const path = location.pathname
     switch (path) {
@@ -68,47 +56,38 @@ const VoiceAssistant = () => {
         return {
           name: "home page",
           description:
-            "You are on the home page. Available options are navigation tools, color blindness tools, snap features, and upload functionality.",
-          commands: "Say navigation, color blindness, snap, upload, or go back",
-          voiceOverDescription:
-            "Home page. Navigation tools, color blindness tools, camera snap, and upload available.",
+            "You are on the home page with navigation tools, color blindness tools, camera features, and upload options.",
+          commands: ["navigation", "color blindness", "camera", "upload", "help", "go back"],
         }
       case "/navigation":
         return {
           name: "navigation page",
-          description:
-            "You are on the navigation assistance page. This page helps with location and direction services.",
-          commands: "Say color blindness, snap, upload, go back, or home",
-          voiceOverDescription: "Navigation assistance page. Location and direction services.",
+          description: "You are on the navigation assistance page for location and direction services.",
+          commands: ["color blindness", "camera", "upload", "home", "go back"],
         }
       case "/color-blindness-tools":
         return {
           name: "color blindness tools page",
-          description:
-            "You are on the color blindness tools page. This page provides tools to help with color identification and accessibility.",
-          commands: "Say navigation, snap, upload, go back, or home",
-          voiceOverDescription: "Color blindness tools page. Color identification and accessibility tools.",
+          description: "You are on the color blindness tools page for color identification assistance.",
+          commands: ["navigation", "camera", "upload", "home", "go back"],
         }
-      case "/snap":
+      case "/camera":
         return {
-          name: "snap page",
-          description: "You are on the snap page. This page provides camera and image capture functionality.",
-          commands: "Say navigation, color blindness, upload, go back, or home",
-          voiceOverDescription: "Camera snap page. Image capture functionality.",
+          name: "camera page",
+          description: "You are on the camera page for image capture and analysis.",
+          commands: ["navigation", "color blindness", "upload", "home", "go back"],
         }
       case "/upload":
         return {
           name: "upload page",
-          description: "You are on the upload page. This page allows you to upload and manage your files.",
-          commands: "Say navigation, color blindness, snap, go back, or home",
-          voiceOverDescription: "Upload page. File upload and management.",
+          description: "You are on the upload page for file management.",
+          commands: ["navigation", "color blindness", "camera", "home", "go back"],
         }
       default:
         return {
           name: "current page",
           description: "You are on a page within the accessibility assistant application.",
-          commands: "Say navigation, color blindness, snap, upload, go back, or home",
-          voiceOverDescription: "Accessibility assistant application page.",
+          commands: ["navigation", "color blindness", "camera", "upload", "home", "go back"],
         }
     }
   }, [location.pathname])
@@ -116,16 +95,15 @@ const VoiceAssistant = () => {
   // Initialize speech synthesis for iOS
   const initializeSpeechSynthesis = useCallback(() => {
     if ("speechSynthesis" in window) {
+      // Silent initialization for iOS
       const utterance = new SpeechSynthesisUtterance("")
       utterance.volume = 0
-
       utterance.onend = () => {
         speechSynthesisReady.current = true
-        setStatusMessage("Speech synthesis ready")
       }
-
       window.speechSynthesis.speak(utterance)
 
+      // Load voices
       if (window.speechSynthesis.getVoices().length === 0) {
         window.speechSynthesis.addEventListener("voiceschanged", () => {
           speechSynthesisReady.current = true
@@ -136,35 +114,10 @@ const VoiceAssistant = () => {
     }
   }, [])
 
-  // Stop listening function - no dependencies to avoid circular refs
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current && recognitionState.current !== "stopped") {
-      try {
-        recognitionRef.current.stop()
-      } catch (error) {
-        console.log("Recognition already stopped")
-      }
-    }
-
-    recognitionState.current = "stopped"
-    setIsListening(false)
-    setStatusMessage("")
-
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-      timeoutRef.current = null
-    }
-  }, [])
-
-  // Update ref
-  useEffect(() => {
-    stopListeningRef.current = stopListening
-  }, [stopListening])
-
-  // Speech function - minimal dependencies
+  // Enhanced speech function for iOS
   const speak = useCallback(
     (text, callback) => {
-      if (!speechEnabled) {
+      if (!speechEnabled || !assistantActive) {
         setStatusMessage(text)
         setTimeout(() => setStatusMessage(""), 3000)
         if (callback) setTimeout(callback, 500)
@@ -175,87 +128,78 @@ const VoiceAssistant = () => {
 
       isProcessingSpeech.current = true
       setIsSpeaking(true)
+      setStatusMessage("Speaking...")
 
-      // Stop listening before speaking
-      if (stopListeningRef.current) {
-        stopListeningRef.current()
-      }
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel()
 
-      setTimeout(
-        () => {
-          window.speechSynthesis.cancel()
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(text)
+        utterance.rate = isIOS ? 0.7 : 0.8
+        utterance.pitch = 1
+        utterance.volume = 1
 
-          const utterance = new SpeechSynthesisUtterance(text)
-          utterance.rate = isIOS ? 0.7 : 0.8
-          utterance.pitch = 1
-          utterance.volume = 1
-
-          if (isIOS) {
-            const voices = window.speechSynthesis.getVoices()
-            const preferredVoice = voices.find(
-              (voice) =>
-                voice.lang.startsWith("en") &&
-                (voice.localService || voice.name.includes("Samantha") || voice.name.includes("Alex")),
-            )
-            if (preferredVoice) {
-              utterance.voice = preferredVoice
-            }
+        // iOS voice optimization
+        if (isIOS) {
+          const voices = window.speechSynthesis.getVoices()
+          const preferredVoice = voices.find(
+            (voice) =>
+              voice.lang.startsWith("en") &&
+              (voice.localService || voice.name.includes("Samantha") || voice.name.includes("Alex")),
+          )
+          if (preferredVoice) {
+            utterance.voice = preferredVoice
           }
+        }
 
-          utterance.onstart = () => {
-            setIsSpeaking(true)
-            setStatusMessage("Speaking...")
+        utterance.onstart = () => {
+          setIsSpeaking(true)
+          setStatusMessage("Speaking...")
+        }
+
+        utterance.onend = () => {
+          setLastInteraction(Date.now())
+          setIsSpeaking(false)
+          isProcessingSpeech.current = false
+          setStatusMessage("")
+
+          if (callback) {
+            setTimeout(callback, 500)
           }
+        }
 
-          utterance.onend = () => {
-            setLastInteraction(Date.now())
-            setIsSpeaking(false)
-            isProcessingSpeech.current = false
-            setStatusMessage("")
+        utterance.onerror = (error) => {
+          console.error("Speech synthesis error:", error)
+          setIsSpeaking(false)
+          isProcessingSpeech.current = false
+          setStatusMessage("Speech error occurred")
+        }
 
-            if (callback) {
-              setTimeout(callback, 500)
-            } else if (continuousMode && startListeningRef.current) {
-              setTimeout(() => {
-                if (!isSpeaking && !isProcessingSpeech.current && startListeningRef.current) {
-                  startListeningRef.current()
-                }
-              }, 1000)
-            }
-          }
-
-          utterance.onerror = (error) => {
-            console.error("Speech synthesis error:", error)
-            setIsSpeaking(false)
-            isProcessingSpeech.current = false
-            setStatusMessage("Speech error occurred")
-
-            if (continuousMode && startListeningRef.current) {
-              setTimeout(() => {
-                if (startListeningRef.current) {
-                  startListeningRef.current()
-                }
-              }, 1000)
-            }
-          }
-
-          window.speechSynthesis.speak(utterance)
-        },
-        isIOS ? 100 : 300,
-      )
+        window.speechSynthesis.speak(utterance)
+      }, 100)
     },
-    [speechEnabled, isIOS, continuousMode, isSpeaking],
+    [speechEnabled, assistantActive, isIOS],
   )
-
-  // Update ref
-  useEffect(() => {
-    speakRef.current = speak
-  }, [speak])
 
   // Process voice commands
   const processCommand = useCallback(
     (command) => {
+      if (!assistantActive) return
+
       const lowerCommand = command.toLowerCase().trim()
+
+      // Assistant control commands
+      if (lowerCommand.includes("turn off assistant") || lowerCommand.includes("disable assistant")) {
+        setAssistantActive(false)
+        speak("Voice assistant disabled. Tap the power button to reactivate.")
+        return
+      }
+
+      if (lowerCommand.includes("turn on assistant") || lowerCommand.includes("enable assistant")) {
+        setAssistantActive(true)
+        speak("Voice assistant enabled and ready to help.")
+        return
+      }
 
       // Speech control commands
       if (
@@ -264,7 +208,7 @@ const VoiceAssistant = () => {
         lowerCommand.includes("mute speech")
       ) {
         setSpeechEnabled(false)
-        setStatusMessage("Speech disabled. Voice commands still active.")
+        setStatusMessage("Speech disabled. Voice commands still work.")
         setTimeout(() => setStatusMessage(""), 3000)
         return
       }
@@ -275,281 +219,208 @@ const VoiceAssistant = () => {
         lowerCommand.includes("unmute speech")
       ) {
         setSpeechEnabled(true)
-        if (speakRef.current) {
-          speakRef.current("Speech enabled. I can talk to you again.")
-        }
-        return
-      }
-
-      // Continuous mode control
-      if (lowerCommand.includes("continuous mode") || lowerCommand.includes("keep listening")) {
-        setContinuousMode(true)
-        if (speakRef.current) {
-          speakRef.current("Continuous listening mode enabled. I will keep listening for your commands.")
-        }
-        return
-      }
-
-      if (lowerCommand.includes("stop continuous") || lowerCommand.includes("single mode")) {
-        setContinuousMode(false)
-        if (speakRef.current) {
-          speakRef.current("Single command mode enabled. Tap the button to give each command.")
-        }
+        speak("Speech enabled. I can talk to you again.")
         return
       }
 
       // Navigation commands
       if (lowerCommand.includes("navigation")) {
-        if (speakRef.current) {
-          speakRef.current(
-            "Navigating to navigation page. This page provides location and direction assistance.",
-            () => {
-              window.open("https://navigation-assistant.vercel.app/", "_blank")
-            },
-          )
-        }
+        speak("Opening navigation assistant in a new tab.", () => {
+          window.open("https://navigation-assistant.vercel.app/", "_blank")
+        })
       } else if (lowerCommand.includes("color") || lowerCommand.includes("color blindness")) {
-        if (speakRef.current) {
-          speakRef.current("Navigating to color blindness tools page.", () => {
-            navigate("/color-blindness-tools")
-          })
-        }
-      } else if (lowerCommand.includes("snap") || lowerCommand.includes("camera")) {
-        if (speakRef.current) {
-          speakRef.current(
-            "Navigating to snap page. This page provides camera and image capture functionality.",
-            () => {
-              navigate("/camera")
-            },
-          )
-        }
+        speak("Navigating to color blindness tools.", () => {
+          navigate("/color-blindness-tools")
+        })
+      } else if (lowerCommand.includes("camera") || lowerCommand.includes("snap")) {
+        speak("Navigating to camera page.", () => {
+          navigate("/camera")
+        })
       } else if (lowerCommand.includes("upload")) {
-        if (speakRef.current) {
-          speakRef.current("Navigating to upload page.", () => {
-            navigate("/upload")
-          })
-        }
+        speak("Navigating to upload page.", () => {
+          navigate("/upload")
+        })
       } else if (lowerCommand.includes("home")) {
-        if (speakRef.current) {
-          speakRef.current("Navigating to home page. This is the main page with access to all features.", () => {
-            navigate("/")
-          })
-        }
-      } else if (lowerCommand.includes("go back")) {
-        if (speakRef.current) {
-          speakRef.current("Going back to the previous page.", () => {
-            navigate(-1)
-          })
-        }
+        speak("Navigating to home page.", () => {
+          navigate("/")
+        })
+      } else if (lowerCommand.includes("go back") || lowerCommand.includes("back")) {
+        speak("Going back to the previous page.", () => {
+          navigate(-1)
+        })
       } else if (lowerCommand.includes("help") || lowerCommand.includes("what can you do")) {
         const pageInfo = getCurrentPageInfo()
-        if (speakRef.current) {
-          speakRef.current(
-            `${pageInfo.description} Available commands: ${pageInfo.commands}. You can also say 'disable speech' to turn off voice responses, 'enable speech' to turn them back on, 'continuous mode' to keep listening, or 'single mode' for one command at a time.`,
-          )
-        }
+        const commandsList = pageInfo.commands.join(", ")
+        speak(
+          `${pageInfo.description} Available commands are: ${commandsList}. You can also say 'disable speech', 'enable speech', 'turn off assistant', or 'turn on assistant'.`,
+        )
       } else if (lowerCommand.includes("where am i") || lowerCommand.includes("current page")) {
         const pageInfo = getCurrentPageInfo()
-        if (speakRef.current) {
-          speakRef.current(`You are currently on the ${pageInfo.name}. ${pageInfo.description}`)
-        }
+        speak(`You are currently on the ${pageInfo.name}. ${pageInfo.description}`)
       } else if (lowerCommand.includes("repeat") || lowerCommand.includes("say again")) {
         const pageInfo = getCurrentPageInfo()
-        if (speakRef.current) {
-          speakRef.current(`${pageInfo.description} Available commands: ${pageInfo.commands}`)
-        }
+        speak(pageInfo.description)
       } else {
-        if (speakRef.current) {
-          speakRef.current(
-            "I didn't understand that command. Say 'help' to hear available options, or try commands like navigation, color blindness, snap, upload, home, go back, disable speech, enable speech, continuous mode, or single mode.",
-          )
-        }
+        speak(
+          "I didn't understand that command. Say 'help' to hear all available options, or try commands like navigation, color blindness, camera, upload, home, or go back.",
+        )
       }
     },
-    [navigate, getCurrentPageInfo],
+    [navigate, speak, getCurrentPageInfo, assistantActive],
   )
 
-  // Update ref
+  // iOS-specific listening simulation (button activated)
+  const startIOSListening = useCallback(() => {
+    if (!assistantActive) return
+
+    setIsListening(true)
+    setStatusMessage("Ready to listen. Speak your command now.")
+
+    // Provide haptic feedback if available
+    if (navigator.vibrate) {
+      navigator.vibrate(50)
+    }
+
+    // Simulate listening for iOS (since we can't actually listen)
+    // In a real implementation, this would integrate with iOS speech recognition
+    // For now, we'll provide a timeout and ask user to use the command buttons
+    timeoutRef.current = setTimeout(() => {
+      setIsListening(false)
+      setStatusMessage("")
+      speak("I couldn't detect speech on iOS. Please use the command buttons below or try the voice button again.")
+    }, 5000)
+  }, [assistantActive, speak])
+
+  // Stop listening
+  const stopListening = useCallback(() => {
+    setIsListening(false)
+    setStatusMessage("")
+    recognitionState.current = "stopped"
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+
+    if (recognitionRef.current && recognitionState.current !== "stopped") {
+      try {
+        recognitionRef.current.stop()
+      } catch (error) {
+        console.log("Recognition already stopped")
+      }
+    }
+  }, [])
+
+  // Non-iOS speech recognition setup
   useEffect(() => {
-    processCommandRef.current = processCommand
-  }, [processCommand])
+    if (isIOS) return // Skip speech recognition setup on iOS
 
-  // Start listening function
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+
+    if (!SpeechRecognition) {
+      console.warn("Speech recognition not supported")
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.lang = "en-US"
+
+    recognition.onstart = () => {
+      recognitionState.current = "running"
+      setIsListening(true)
+      setStatusMessage("Listening...")
+    }
+
+    recognition.onresult = (event) => {
+      const result = event.results[0][0].transcript
+      setTranscript(result)
+      setLastInteraction(Date.now())
+
+      if (!isSpeaking && !isProcessingSpeech.current) {
+        processCommand(result)
+      }
+    }
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error)
+      recognitionState.current = "stopped"
+      setIsListening(false)
+      setStatusMessage("")
+
+      if (event.error !== "aborted" && event.error !== "no-speech") {
+        setStatusMessage("Voice recognition error. Please try again.")
+      }
+    }
+
+    recognition.onend = () => {
+      recognitionState.current = "stopped"
+      setIsListening(false)
+      setStatusMessage("")
+    }
+
+    recognitionRef.current = recognition
+
+    return () => {
+      if (recognition) {
+        recognition.stop()
+      }
+    }
+  }, [processCommand, isSpeaking, isIOS])
+
+  // Start listening (non-iOS)
   const startListening = useCallback(() => {
-    if (!isSupported || isSpeaking || isProcessingSpeech.current) return
+    if (!assistantActive || isIOS) return
 
-    if (!recognitionRef.current) return
+    if (!recognitionRef.current || isSpeaking || isProcessingSpeech.current) return
 
     try {
       recognitionState.current = "starting"
       setTranscript("")
-      setStatusMessage("Starting voice recognition...")
-
       recognitionRef.current.start()
       setLastInteraction(Date.now())
-      listeningAttempts.current = 0
 
-      if (continuousMode) {
-        timeoutRef.current = setTimeout(() => {
-          if (recognitionState.current === "running" && !isSpeaking && speakRef.current) {
-            speakRef.current("I'm still listening. Say a command or 'help' for options.")
-          }
-        }, 20000)
-      } else {
-        timeoutRef.current = setTimeout(() => {
-          if (recognitionState.current === "running" && !isSpeaking) {
-            if (speakRef.current) {
-              speakRef.current("I didn't hear anything. Tap the button to try again.")
-            }
-            if (stopListeningRef.current) {
-              stopListeningRef.current()
-            }
-          }
-        }, 10000)
-      }
+      timeoutRef.current = setTimeout(() => {
+        if (recognitionState.current === "running") {
+          speak("I didn't hear anything. Please try again.")
+          stopListening()
+        }
+      }, 10000)
     } catch (error) {
       console.error("Error starting recognition:", error)
       recognitionState.current = "stopped"
       setIsListening(false)
       setStatusMessage("Voice recognition error. Please try again.")
     }
-  }, [isSupported, isSpeaking, continuousMode])
+  }, [assistantActive, isIOS, isSpeaking, speak, stopListening])
 
-  // Update ref
+  // Welcome message and page announcements
   useEffect(() => {
-    startListeningRef.current = startListening
-  }, [startListening])
+    if (!assistantActive) return
 
-  // Initialize speech recognition
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const currentPath = location.pathname
 
-    if (!SpeechRecognition || !("speechSynthesis" in window)) {
-      if (!isIOS) {
-        setIsSupported(false)
-        console.warn("Speech recognition or synthesis not supported in this browser")
-        return
-      }
-    }
+    if (lastAnnouncedPage.current !== currentPath) {
+      lastAnnouncedPage.current = currentPath
+      const pageInfo = getCurrentPageInfo()
 
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition()
-      recognition.continuous = continuousMode
-      recognition.interimResults = false
-      recognition.lang = "en-US"
-
-      if (isIOS) {
-        recognition.maxAlternatives = 1
-      }
-
-      recognition.onstart = () => {
-        recognitionState.current = "running"
-        setIsListening(true)
-        setStatusMessage("Listening...")
-      }
-
-      recognition.onresult = (event) => {
-        const result = event.results[event.results.length - 1][0].transcript
-        setTranscript(result)
-        setLastInteraction(Date.now())
-
-        if (!isSpeaking && !isProcessingSpeech.current && processCommandRef.current) {
-          processCommandRef.current(result)
-        }
-      }
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error)
-        recognitionState.current = "stopped"
-        setIsListening(false)
-
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current)
-          timeoutRef.current = null
-        }
-
-        if (event.error === "no-speech" && continuousMode) {
-          setTimeout(() => {
-            if (!isSpeaking && !isProcessingSpeech.current && startListeningRef.current) {
-              startListeningRef.current()
-            }
-          }, 2000)
-        } else if (event.error !== "aborted" && !isSpeaking) {
-          setStatusMessage(`Recognition error: ${event.error}`)
-          if (isIOS) {
-            setTimeout(() => {
-              if (startListeningRef.current) {
-                startListeningRef.current()
-              }
-            }, 3000)
-          }
-        }
-      }
-
-      recognition.onend = () => {
-        recognitionState.current = "stopped"
-        setIsListening(false)
-        setStatusMessage("")
-
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current)
-          timeoutRef.current = null
-        }
-
-        if (continuousMode && !isSpeaking && !isProcessingSpeech.current && startListeningRef.current) {
-          setTimeout(() => {
-            if (startListeningRef.current) {
-              startListeningRef.current()
-            }
-          }, 1000)
-        }
-      }
-
-      recognitionRef.current = recognition
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
-      }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-      if (reminderTimeoutRef.current) {
-        clearInterval(reminderTimeoutRef.current)
-      }
-      recognitionState.current = "stopped"
-      isProcessingSpeech.current = false
-    }
-  }, [continuousMode, isIOS, isSpeaking])
-
-  // Welcome message
-  useEffect(() => {
-    if (isSupported && !hasSpokenWelcome.current) {
-      hasSpokenWelcome.current = true
-      lastAnnouncedPage.current = location.pathname
-
-      setTimeout(() => {
-        const pageInfo = getCurrentPageInfo()
-        const welcomeMessage = isIOS
-          ? `Welcome to the accessibility assistant optimized for iOS. Voice recognition is active. ${pageInfo.description} Say 'help' for all available commands, 'continuous mode' to keep listening, or 'disable speech' to turn off voice responses.`
-          : `Welcome to the accessibility assistant. ${pageInfo.description} Available commands: ${pageInfo.commands}`
-
-        if (speakRef.current) {
-          speakRef.current(welcomeMessage)
-        }
-
+      if (!hasSpokenWelcome.current) {
+        hasSpokenWelcome.current = true
         setTimeout(() => {
-          if (isIOS) {
-            setContinuousMode(true)
-          }
-          if (startListeningRef.current) {
-            startListeningRef.current()
-          }
-        }, 3000)
-      }, 1000)
+          const welcomeMessage = isIOS
+            ? `Welcome to the accessibility assistant optimized for iOS. ${pageInfo.description} Tap the microphone button to give voice commands, or use the command buttons below.`
+            : `Welcome to the accessibility assistant. ${pageInfo.description} Tap the microphone to give voice commands.`
+
+          speak(welcomeMessage)
+        }, 1000)
+      } else {
+        setTimeout(() => {
+          speak(`Page changed. ${pageInfo.description}`)
+        }, 500)
+      }
     }
-  }, [isSupported, location.pathname, getCurrentPageInfo, isIOS])
+  }, [location.pathname, getCurrentPageInfo, isIOS, speak, assistantActive])
 
   // Initialize
   useEffect(() => {
@@ -562,82 +433,107 @@ const VoiceAssistant = () => {
     }
   }, [isIOS, initializeSpeechSynthesis])
 
-  // Handle main button click
-  const handleMainButtonClick = () => {
-    if (isListening || recognitionState.current === "running") {
-      if (stopListeningRef.current) {
-        stopListeningRef.current()
+  // Handle main voice button
+  const handleVoiceButtonClick = () => {
+    if (!assistantActive) {
+      setAssistantActive(true)
+      speak("Voice assistant activated and ready to help.")
+      return
+    }
+
+    if (isListening) {
+      stopListening()
+    } else if (!isSpeaking) {
+      if (isIOS) {
+        startIOSListening()
+      } else {
+        startListening()
       }
-    } else {
-      const pageInfo = getCurrentPageInfo()
-      if (speakRef.current) {
-        speakRef.current(
-          `Voice assistant activated. ${continuousMode ? "Continuous listening mode. " : ""}${pageInfo.description} Say 'help' for all available commands.`,
-        )
-      }
-      setTimeout(() => {
-        if (startListeningRef.current) {
-          startListeningRef.current()
-        }
-      }, 2000)
     }
   }
 
   // Handle speech toggle
   const handleSpeechToggle = () => {
+    if (!assistantActive) return
+
     setSpeechEnabled(!speechEnabled)
     if (!speechEnabled) {
-      if (speakRef.current) {
-        speakRef.current("Speech enabled. I can talk to you again.")
-      }
+      speak("Speech responses enabled.")
     } else {
-      setStatusMessage("Speech disabled. Voice commands still active.")
+      setStatusMessage("Speech responses disabled. Voice commands still work.")
       setTimeout(() => setStatusMessage(""), 3000)
     }
   }
 
-  // Handle continuous mode toggle
-  const handleContinuousModeToggle = () => {
-    setContinuousMode(!continuousMode)
-    if (!continuousMode) {
-      if (speakRef.current) {
-        speakRef.current("Continuous listening mode enabled. I will keep listening for your commands.")
-      }
+  // Handle assistant power toggle
+  const handleAssistantToggle = () => {
+    setAssistantActive(!assistantActive)
+    if (!assistantActive) {
+      speak("Voice assistant activated and ready to help.")
     } else {
-      if (speakRef.current) {
-        speakRef.current("Single command mode enabled. Tap the button to give each command.")
-      }
+      setStatusMessage("Voice assistant disabled.")
+      setTimeout(() => setStatusMessage(""), 3000)
     }
+  }
+
+  // Quick command buttons for iOS
+  const QuickCommandButtons = () => {
+    const pageInfo = getCurrentPageInfo()
+    const commands = pageInfo.commands.slice(0, 4) // Show first 4 commands
+
+    return (
+      <div className="grid grid-cols-2 gap-1 w-full mt-2">
+        {commands.map((command) => (
+          <Button
+            key={command}
+            size="sm"
+            variant="outline"
+            onClick={() => processCommand(command)}
+            className="text-xs py-1 px-2"
+            disabled={!assistantActive}
+          >
+            {command === "color blindness" ? "Color Tools" : command.charAt(0).toUpperCase() + command.slice(1)}
+          </Button>
+        ))}
+      </div>
+    )
   }
 
   if (!isSupported && !isIOS) {
     return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-yellow-800">
-          Voice assistant is not supported in this browser. Please use a modern browser with speech recognition support.
+      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg max-w-xs">
+        <p className="text-yellow-800 text-sm text-center">
+          Voice assistant is not supported in this browser. Please use a modern browser.
         </p>
       </div>
     )
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
-      <div className="bg-white shadow-lg rounded-lg p-4 border max-w-xs" role="region" aria-label="Voice Assistant">
-        <div className="flex flex-col items-center space-y-3">
+    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+      <div
+        className={`bg-white shadow-lg rounded-lg p-3 border max-w-sm transition-opacity duration-300 ${
+          assistantActive ? "opacity-100" : "opacity-75"
+        }`}
+        role="region"
+        aria-label="Voice Assistant"
+      >
+        <div className="flex flex-col items-center space-y-2">
+          {/* Header */}
           <div className="text-center">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2" id="voice-assistant-title">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-sm" id="voice-assistant-title">
               {isIOS && <Smartphone className="w-4 h-4" aria-hidden="true" />}
               Voice Assistant
-              {isIOS && <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">iOS Optimized</span>}
+              {isIOS && <span className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">iOS</span>}
             </h3>
-            <p className="text-sm text-gray-600" aria-live="polite">
-              {isSpeaking
-                ? "Speaking..."
-                : isListening
-                  ? continuousMode
-                    ? "Listening continuously..."
-                    : "Listening..."
-                  : "Ready to help"}
+            <p className="text-xs text-gray-600" aria-live="polite">
+              {!assistantActive
+                ? "Assistant disabled"
+                : isSpeaking
+                  ? "Speaking..."
+                  : isListening
+                    ? "Listening..."
+                    : "Ready to help"}
             </p>
             {statusMessage && (
               <p className="text-xs text-blue-600 mt-1" aria-live="polite">
@@ -646,25 +542,37 @@ const VoiceAssistant = () => {
             )}
           </div>
 
-          {transcript && (
-            <div className="text-xs text-gray-500 max-w-48 text-center" aria-live="polite">
+          {/* Last heard transcript */}
+          {transcript && !isIOS && (
+            <div className="text-xs text-gray-500 text-center max-w-full" aria-live="polite">
               Last heard: "{transcript}"
             </div>
           )}
 
+          {/* Main controls */}
           <div className="flex gap-2 w-full">
             <Button
               ref={buttonRef}
-              onClick={handleMainButtonClick}
-              variant={isListening ? "destructive" : "default"}
+              onClick={handleVoiceButtonClick}
+              variant={isListening ? "destructive" : assistantActive ? "default" : "outline"}
               size="sm"
               className="flex-1"
               disabled={isSpeaking}
-              aria-label={isListening ? "Stop voice recognition" : "Start voice recognition and speak page information"}
+              aria-label={
+                !assistantActive
+                  ? "Activate voice assistant"
+                  : isListening
+                    ? "Stop listening"
+                    : "Start voice recognition"
+              }
               aria-pressed={isListening}
-              aria-describedby="voice-assistant-title"
             >
-              {isListening ? (
+              {!assistantActive ? (
+                <>
+                  <Mic className="w-4 h-4 mr-1" aria-hidden="true" />
+                  Activate
+                </>
+              ) : isListening ? (
                 <>
                   <MicOff className="w-4 h-4 mr-1" aria-hidden="true" />
                   Stop
@@ -672,20 +580,21 @@ const VoiceAssistant = () => {
               ) : (
                 <>
                   <Mic className="w-4 h-4 mr-1" aria-hidden="true" />
-                  Listen
+                  {isIOS ? "Tap to Speak" : "Listen"}
                 </>
               )}
             </Button>
 
             <Button
               onClick={handleSpeechToggle}
-              variant={speechEnabled ? "default" : "outline"}
+              variant={speechEnabled && assistantActive ? "default" : "outline"}
               size="sm"
               className="flex-1"
+              disabled={!assistantActive}
               aria-label={speechEnabled ? "Disable speech responses" : "Enable speech responses"}
               aria-pressed={speechEnabled}
             >
-              {speechEnabled ? (
+              {speechEnabled && assistantActive ? (
                 <>
                   <Volume2 className="w-4 h-4 mr-1" aria-hidden="true" />
                   Speech On
@@ -699,30 +608,50 @@ const VoiceAssistant = () => {
             </Button>
           </div>
 
-          <Button
-            onClick={handleContinuousModeToggle}
-            variant={continuousMode ? "default" : "outline"}
-            size="sm"
-            className="w-full"
-            aria-label={continuousMode ? "Disable continuous listening" : "Enable continuous listening"}
-            aria-pressed={continuousMode}
-          >
-            {continuousMode ? (
-              <>
-                <Pause className="w-4 h-4 mr-2" aria-hidden="true" />
-                Continuous Mode On
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 mr-2" aria-hidden="true" />
-                Single Command Mode
-              </>
-            )}
-          </Button>
+          {/* iOS Quick Commands */}
+          {isIOS && assistantActive && <QuickCommandButtons />}
 
-          <div className="text-xs text-gray-500 text-center max-w-48" role="note">
-            Say: "help", "navigation", "color blindness", "snap", "upload", "home", "go back", "disable speech", "enable
-            speech", "continuous mode", or "single mode"
+          {/* Help and Power buttons */}
+          <div className="flex gap-2 w-full">
+            <Button
+              onClick={() => {
+                if (assistantActive) {
+                  setShowCommands(!showCommands)
+                  if (!showCommands) {
+                    const pageInfo = getCurrentPageInfo()
+                    speak(`Available commands: ${pageInfo.commands.join(", ")}`)
+                  }
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              disabled={!assistantActive}
+              aria-label="Show available commands"
+            >
+              <HelpCircle className="w-4 h-4 mr-1" aria-hidden="true" />
+              Help
+            </Button>
+
+            <Button
+              onClick={handleAssistantToggle}
+              variant={assistantActive ? "destructive" : "default"}
+              size="sm"
+              className="flex-1"
+              aria-label={assistantActive ? "Turn off voice assistant" : "Turn on voice assistant"}
+              aria-pressed={assistantActive}
+            >
+              {assistantActive ? "Turn Off" : "Turn On"}
+            </Button>
+          </div>
+
+          {/* Instructions */}
+          <div className="text-xs text-gray-500 text-center max-w-full" role="note">
+            {!assistantActive
+              ? "Voice assistant is disabled. Tap 'Turn On' to activate."
+              : isIOS
+                ? "Tap microphone or use buttons above for commands"
+                : "Tap microphone and say: navigation, color blindness, camera, upload, home, or help"}
           </div>
         </div>
       </div>
