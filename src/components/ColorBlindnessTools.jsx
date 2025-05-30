@@ -39,7 +39,6 @@ export default function ColorBlindnessHome() {
         </p>
       </div>
 
-      {/* Use the ColorBlindnessUploader component */}
       <ColorBlindnessUploader />
 
       <div className="mb-12">

@@ -19,6 +19,28 @@ export default function ColorBlindnessResults() {
     });
   };
 
+  const handleShare = () => {
+    // Check if Web Share API is supported
+    if (navigator.share) {
+      navigator
+        .share({
+          title: "Image Description",
+        })
+        .catch((error) => {
+          console.log("Error sharing:", error)
+        })
+    } else {
+      navigator.clipboard
+        .writeText(description)
+        .then(() => {
+          alert("Description copied to clipboard!")
+        })
+        .catch(() => {
+          alert("Failed to copy description")
+        })
+    }
+  }
+
   useEffect(() => {
     // Simulate loading time
     const timer = setTimeout(() => {
@@ -26,6 +48,8 @@ export default function ColorBlindnessResults() {
     }, 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  
 
   // If no results (user navigated directly), show fallback
   if (!results.length) {
@@ -107,7 +131,10 @@ export default function ColorBlindnessResults() {
           >
             <Download className="mr-2 h-4 w-4" /> Download All
           </button>
-          <button className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+          <button 
+          className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+          onClick={handleShare}
+          aria-label="Share description">
             <Share2 className="mr-2 h-4 w-4" /> Share
           </button>
           <Link
@@ -151,7 +178,7 @@ export default function ColorBlindnessResults() {
         {activeTab === "all"
           ? simulations.map((sim) => (
               <div key={sim.id} className="border rounded-lg overflow-hidden">
-                <div className="aspect-video relative">
+                <div className="">
                   <img
                     src={sim.imageUrl || "/placeholder.svg"}
                     alt={`${sim.name} simulation`}
@@ -171,7 +198,7 @@ export default function ColorBlindnessResults() {
                   key={sim.id}
                   className="border rounded-lg overflow-hidden col-span-full max-w-3xl mx-auto"
                 >
-                  <div className="aspect-video relative">
+                  <div className="">
                     <img
                       src={sim.imageUrl || "/placeholder.svg"}
                       alt={`${sim.name} simulation`}

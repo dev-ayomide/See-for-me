@@ -1,4 +1,4 @@
-import { Moon, Sun, Palette } from "lucide-react"
+import { Moon, Sun, Contrast } from "lucide-react"
 import { useTheme } from "../context/theme-context"
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group"
 
@@ -14,7 +14,7 @@ export function ThemeSwitcher() {
         <Moon className="h-4 w-4" />
       </ToggleGroupItem>
       <ToggleGroupItem value="grayscale" aria-label="Grayscale mode">
-        <Palette className="h-4 w-4" />
+        <Contrast className="h-4 w-4" />
       </ToggleGroupItem>
     </ToggleGroup>
   )

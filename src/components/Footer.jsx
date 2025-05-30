@@ -47,7 +47,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 text-right text-sm text-gray-100">
+        <div className="mt-8 text-right text-sm text-gray-400">
           <p>© Copyright by SeeForMe. All rights reserved</p>
         </div>
       </div>

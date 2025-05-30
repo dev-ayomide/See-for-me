@@ -15,13 +15,17 @@ import ImageUpload from "./components/ImageUpload"
 import ImageResult from "./components/ImageResult"
 import CameraCapture from "./components/CameraCapture";
 import ColorBlindnessResults from './components/ColorBlindnessResults';
+import { SpeechProvider } from './context/speech-context';
+import VoiceAssistant from './components/VoiceAssistant';
 // import SimpleCameraCapture from './components/SimpleCameraCapture';
 
 function App() {
   // const CameraComponent = SimpleCameraCapture
   return (
+  <SpeechProvider>
   <ThemeProvider>
    <Router>
+    <VoiceAssistant />
     <Navbar/>
     <Routes>
       <Route path="/" element={
@@ -69,6 +73,7 @@ function App() {
       <Footer/>
    </Router>
    </ThemeProvider>
+   </SpeechProvider>
   )
 }
 

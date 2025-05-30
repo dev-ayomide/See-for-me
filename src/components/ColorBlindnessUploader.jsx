@@ -94,7 +94,7 @@ reader.onload = (e) => {
 
   return (
     <div>
-      <div className="grid grid-cols-1  gap-4 max-w-md mx-auto mb-8">
+      <div className="grid grid-cols-1 gap-4 max-w-md mx-auto mb-8">
         <label className="border border-gray-200 rounded-md p-6 flex flex-col items-center hover:shadow-md transition-shadow cursor-pointer">
           <input type="file" onChange={onFileChange} accept="image/*" className="hidden" />
           <div className="w-12 h-12 flex items-center justify-center text-blue-600 mb-3">

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom"
+import { Link } from "react-router-dom";
 import heroimage from "../images/heroimage.png";
+import { useSpeech } from "../context/speech-context";
 
 function HeroSection() {
   return (

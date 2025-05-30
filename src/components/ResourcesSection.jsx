@@ -59,10 +59,10 @@ export default function ResourcesSection() {
               href={res.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="block border rounded-lg p-6 hover:shadow-lg transition-shadow bg-white"
+              className="block border rounded-lg p-6 hover:shadow-lg transition-shadow"
             >
               <h4 className="font-semibold text-lg mb-2">{res.title}</h4>
-              <p className="text-gray-600 mb-3">{res.description}</p>
+              <p className="mb-3">{res.description}</p>
               <span className="inline-block text-emerald-600 text-sm font-medium capitalize">
                 {res.type}
               </span>

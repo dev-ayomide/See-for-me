@@ -40,17 +40,7 @@ export default function BlindnessAssistanceHome() {
           <span className="text-blue-600 font-medium">Upload an image or PDF</span> to get spoken or text descriptions
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
-          <Link
-            to="/blindness-assistance/camera"
-            className="border border-gray-200 rounded-md p-6 flex flex-col items-center hover:shadow-md transition-shadow"
-          >
-            <div className="w-12 h-12 flex items-center justify-center text-green-600 mb-3">
-              <Camera className="w-8 h-8" />
-            </div>
-            <span className="text-green-600 font-medium">Camera Navigation</span>
-          </Link>
-
+        <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto">
           <Link
             to="/upload"
             className="border border-gray-200 rounded-md p-6 flex flex-col items-center hover:shadow-md transition-shadow"
@@ -166,16 +156,6 @@ export default function BlindnessAssistanceHome() {
         </div>
       </div>
 
-      <div className="w-full bg-blue-50 p-4 rounded-lg mt-8">
-        <div className="flex items-start max-w-3xl mx-auto">
-          <Info className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-          <p className="text-sm text-blue-800">
-            <strong>Important:</strong> For the best experience, use the camera navigation feature in well-lit
-            environments. The camera navigation works best outdoors or in spaces with good lighting. Make sure your
-            device's volume is turned up to hear the audio descriptions.
-          </p>
-        </div>
-      </div>
     </div>
   )
 }
