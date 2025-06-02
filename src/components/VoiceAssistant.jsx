@@ -11,6 +11,8 @@ function isIOS() {
 }
 
 const VoiceAssistant = () => {
+  const [isEnabled, setIsEnabled] = useState(true);
+
   // iOS: Only allow speech output after tap
   if (isIOS()) {
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -30,13 +32,32 @@ const VoiceAssistant = () => {
       window.speechSynthesis.speak(utterance);
     };
 
-    // Disable Voice button for iOS (stops speech)
     const handleDisableVoice = () => {
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
       setIsSpeaking(false);
+      setIsEnabled(false);
     };
+
+    const handleEnableVoice = () => {
+      setIsEnabled(true);
+    };
+
+    if (!isEnabled) {
+      return (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex flex-col items-center">
+          <Button
+            onClick={handleEnableVoice}
+            variant="default"
+            size="lg"
+            className="w-full"
+          >
+            Enable Voice Assistant
+          </Button>
+        </div>
+      );
+    }
 
     return (
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex flex-col items-center">
@@ -80,7 +101,7 @@ const VoiceAssistant = () => {
   const buttonRef = useRef(null)
   const hasSpokenWelcome = useRef(false)
   const lastAnnouncedPage = useRef("")
-  const recognitionState = useRef("stopped") // 'stopped', 'starting', 'running'
+  const recognitionState = useRef("stopped")
   const isProcessingSpeech = useRef(false)
 
   // Get current page context
@@ -454,6 +475,16 @@ const VoiceAssistant = () => {
     stopListening();
     setIsSpeaking(false);
     setTranscript("");
+    setIsEnabled(false);
+  };
+
+  const handleEnableVoice = () => {
+    setIsEnabled(true);
+    // Optionally, speak a welcome message or start listening again
+    const pageInfo = getCurrentPageInfo();
+    speak(
+      `Voice assistant enabled. ${pageInfo.commands}`
+    );
   };
 
   if (!isSupported) {
@@ -464,6 +495,23 @@ const VoiceAssistant = () => {
         </p>
       </div>
     )
+  }
+
+  if (!isEnabled) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <div className="bg-white shadow-lg rounded-lg p-4 border flex flex-col items-center">
+          <Button
+            onClick={handleEnableVoice}
+            variant="default"
+            size="lg"
+            className="w-full"
+          >
+            Enable Voice Assistant
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
