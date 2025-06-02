@@ -22,7 +22,6 @@ export default function ColorBlindnessHome() {
     sessionStorage.setItem("originalImage", imageUrl)
     sessionStorage.setItem("fileType", "image")
 
-    // Navigate to results page
     navigate("/color-blindness-results")
   }
 

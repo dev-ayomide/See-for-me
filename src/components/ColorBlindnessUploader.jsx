@@ -62,7 +62,7 @@ reader.onload = (e) => {
     ctx.drawImage(img, 0, 0);
 
     const originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const originalImageUrl = canvas.toDataURL(); // <-- Save original image
+    const originalImageUrl = canvas.toDataURL(); // Save original image
 
     // Apply each filter and save the results
     const results = Object.entries(matrices).map(([type, matrix]) => {

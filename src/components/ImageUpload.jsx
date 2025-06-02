@@ -77,13 +77,11 @@ function ImageUpload() {
         setLoadingMessage("Generating AI description...")
         speak("Analyzing image to generate a description.")
 
-        // Get the description from Gemini API
         const description = await getImageDescription(imageData)
 
         // Store the description
         localStorage.setItem("imageDescription", description)
 
-        // Navigate to the result page with auto-speak flag
         navigate("/result", { state: { autoSpeak: true } })
       } catch (error) {
         console.error("Error processing image:", error)
