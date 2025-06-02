@@ -30,6 +30,14 @@ const VoiceAssistant = () => {
       window.speechSynthesis.speak(utterance);
     };
 
+    // Disable Voice button for iOS (stops speech)
+    const handleDisableVoice = () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsSpeaking(false);
+    };
+
     return (
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex flex-col items-center">
         <p className="text-yellow-800 mb-4">
@@ -44,6 +52,15 @@ const VoiceAssistant = () => {
           disabled={isSpeaking}
         >
           {isSpeaking ? "Speaking..." : hasSpoken ? "Replay Welcome" : "Talk to Assistant"}
+        </Button>
+        <Button
+          onClick={handleDisableVoice}
+          variant="outline"
+          size="sm"
+          className="w-full mt-2"
+          disabled={!isSpeaking}
+        >
+          Disable Voice
         </Button>
       </div>
     );
@@ -63,7 +80,7 @@ const VoiceAssistant = () => {
   const buttonRef = useRef(null)
   const hasSpokenWelcome = useRef(false)
   const lastAnnouncedPage = useRef("")
-  const recognitionState = useRef("stopped")
+  const recognitionState = useRef("stopped") // 'stopped', 'starting', 'running'
   const isProcessingSpeech = useRef(false)
 
   // Get current page context
@@ -118,11 +135,13 @@ const VoiceAssistant = () => {
       try {
         recognitionRef.current.abort()
       } catch (error) {
-        // ignore
+        console.log("Recognition already stopped")
       }
     }
+
     recognitionState.current = "stopped"
     setIsListening(false)
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
       timeoutRef.current = null
@@ -131,10 +150,15 @@ const VoiceAssistant = () => {
 
   // Start listening function - only starts when not speaking
   const startListening = useCallback(() => {
+    // Never start listening while speaking or processing speech
     if (!recognitionRef.current || !isSupported || isSpeaking || isProcessingSpeech.current) {
       return
     }
+
+    // Ensure we're completely stopped first
     stopListening()
+
+    // Wait longer to ensure recognition is fully stopped
     setTimeout(() => {
       if (recognitionState.current === "stopped" && !isSpeaking && !isProcessingSpeech.current) {
         try {
@@ -142,6 +166,8 @@ const VoiceAssistant = () => {
           setTranscript("")
           recognitionRef.current.start()
           setLastInteraction(Date.now())
+
+          // Set timeout for 15 seconds of silence
           timeoutRef.current = setTimeout(() => {
             if (recognitionState.current === "running" && !isSpeaking) {
               speak(
@@ -150,6 +176,7 @@ const VoiceAssistant = () => {
             }
           }, 15000)
         } catch (error) {
+          console.error("Error starting recognition:", error)
           recognitionState.current = "stopped"
           setIsListening(false)
         }
@@ -157,27 +184,43 @@ const VoiceAssistant = () => {
     }, 500)
   }, [isSupported, isSpeaking, stopListening])
 
-  // Speech synthesis function
+  // Simplified speech synthesis function
   const speak = useCallback(
     (text, callback) => {
       if (!("speechSynthesis" in window) || isProcessingSpeech.current) return
+
       isProcessingSpeech.current = true
       setIsSpeaking(true)
+
+      // Ensure recognition is completely stopped before speaking
       stopListening()
+
+      // Wait to ensure recognition is fully stopped
       setTimeout(() => {
+        // Cancel any ongoing speech
         window.speechSynthesis.cancel()
+
         const utterance = new SpeechSynthesisUtterance(text)
         utterance.rate = 0.8
         utterance.pitch = 1
         utterance.volume = 1
-        utterance.onstart = () => setIsSpeaking(true)
+
+        utterance.onstart = () => {
+          setIsSpeaking(true)
+        }
+
         utterance.onend = () => {
           setLastInteraction(Date.now())
           setIsSpeaking(false)
           isProcessingSpeech.current = false
+
+          // Execute callback if provided (for navigation)
           if (callback) {
-            setTimeout(() => callback(), 500)
+            setTimeout(() => {
+              callback()
+            }, 500)
           } else {
+            // Only restart listening if no callback (no navigation)
             setTimeout(() => {
               if (!isSpeaking && !isProcessingSpeech.current) {
                 startListening()
@@ -185,15 +228,20 @@ const VoiceAssistant = () => {
             }, 1500)
           }
         }
-        utterance.onerror = () => {
+
+        utterance.onerror = (error) => {
+          console.error("Speech synthesis error:", error)
           setIsSpeaking(false)
           isProcessingSpeech.current = false
+
+          // Restart listening after error
           setTimeout(() => {
             if (!isSpeaking && !isProcessingSpeech.current) {
               startListening()
             }
           }, 1000)
         }
+
         window.speechSynthesis.speak(utterance)
       }, 300)
     },
@@ -204,6 +252,7 @@ const VoiceAssistant = () => {
   const processCommand = useCallback(
     (command) => {
       const lowerCommand = command.toLowerCase().trim()
+
       if (lowerCommand.includes("navigation")) {
         speak("Navigating to navigation page. This page provides location and direction assistance.", () => {
             window.open("https://navigation-assistant.vercel.app/", "_blank");
@@ -250,6 +299,8 @@ const VoiceAssistant = () => {
   useEffect(() => {
     const checkForReactivation = () => {
       const timeSinceLastInteraction = Date.now() - lastInteraction
+
+      // If no interaction for 60 seconds and not currently listening or speaking
       if (
         timeSinceLastInteraction > 60000 &&
         !isListening &&
@@ -261,7 +312,10 @@ const VoiceAssistant = () => {
         speak(`Voice assistant is ready to help. You're on the ${pageInfo.name}. Say a command or 'help' for options.`)
       }
     }
+
+    // Check every 30 seconds
     reminderTimeoutRef.current = setInterval(checkForReactivation, 30000)
+
     return () => {
       if (reminderTimeoutRef.current) {
         clearInterval(reminderTimeoutRef.current)
@@ -272,9 +326,12 @@ const VoiceAssistant = () => {
   // Announce page changes
   useEffect(() => {
     const currentPath = location.pathname
+
     if (lastAnnouncedPage.current !== currentPath && hasSpokenWelcome.current) {
       lastAnnouncedPage.current = currentPath
       const pageInfo = getCurrentPageInfo()
+
+      // Delay to allow page to load
       setTimeout(() => {
         speak(`Page loaded. ${pageInfo.description} Available commands: ${pageInfo.commands}`)
       }, 1000)
@@ -285,47 +342,62 @@ const VoiceAssistant = () => {
   useEffect(() => {
     // Check for browser support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+
     if (!SpeechRecognition || !("speechSynthesis" in window)) {
       setIsSupported(false)
+      console.warn("Speech recognition or synthesis not supported in this browser")
       return
     }
+
     // Create recognition instance
     const recognition = new SpeechRecognition()
     recognition.continuous = false
     recognition.interimResults = false
     recognition.lang = "en-US"
+
     recognition.onstart = () => {
       recognitionState.current = "running"
       setIsListening(true)
     }
+
     recognition.onresult = (event) => {
       const result = event.results[0][0].transcript
       setTranscript(result)
+
+      // Only process commands if we're not speaking
       if (!isSpeaking && !isProcessingSpeech.current) {
         processCommand(result)
       }
     }
+
     recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error)
       recognitionState.current = "stopped"
       setIsListening(false)
+
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
         timeoutRef.current = null
       }
+
       // Only speak error message for actual errors, not aborts
       if (event.error !== "aborted" && event.error !== "no-speech" && !isSpeaking) {
-        speak("Sorry, there was an error with voice recognition. Please check your browser permissions or try again.")
+        speak("Sorry, there was an error with voice recognition. Please try the Talk to Assistant button.")
       }
     }
+
     recognition.onend = () => {
       recognitionState.current = "stopped"
       setIsListening(false)
+
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
         timeoutRef.current = null
       }
     }
+
     recognitionRef.current = recognition
+
     return () => {
       if (recognition) {
         recognition.abort()
@@ -346,6 +418,8 @@ const VoiceAssistant = () => {
     if (isSupported && !hasSpokenWelcome.current) {
       hasSpokenWelcome.current = true
       lastAnnouncedPage.current = location.pathname
+
+      // Small delay to ensure component is fully mounted
       setTimeout(() => {
         const pageInfo = getCurrentPageInfo()
         speak(
@@ -371,6 +445,16 @@ const VoiceAssistant = () => {
       speak(`Voice assistant activated. ${pageInfo.commands}`)
     }
   }
+
+  // Disable Voice button for Android/Desktop (stops speech and listening)
+  const handleDisableVoice = () => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    stopListening();
+    setIsSpeaking(false);
+    setTranscript("");
+  };
 
   if (!isSupported) {
     return (
@@ -416,6 +500,17 @@ const VoiceAssistant = () => {
                 Talk to Assistant
               </>
             )}
+          </Button>
+
+          {/* Disable Voice button */}
+          <Button
+            onClick={handleDisableVoice}
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={!isSpeaking && !isListening}
+          >
+            Disable Voice
           </Button>
 
           <div className="text-xs text-gray-500 text-center max-w-48">
