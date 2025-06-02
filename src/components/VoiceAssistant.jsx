@@ -144,6 +144,12 @@ const VoiceAssistant = () => {
         utterance.pitch = 1
         utterance.volume = 1
 
+        // Handle mobile Chrome specific issues
+        if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          window.speechSynthesis.getVoices(); // Force voices to load
+          utterance.voice = window.speechSynthesis.getVoices()[0]; // Set default voice
+        }
+
         utterance.onstart = () => {
           setIsSpeaking(true)
         }
@@ -271,12 +277,19 @@ const VoiceAssistant = () => {
       const pageInfo = getCurrentPageInfo()
 
       // Delay to allow page to load
-      setTimeout(() => {
-        speak(`Page loaded. ${pageInfo.description} Available commands: ${pageInfo.commands}`)
-      }, 1000)
-    }
-  }, [location.pathname, speak, getCurrentPageInfo])
+  // Initialize speech recognition and synthesis
+  useEffect(() => {
+    // Check for browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
 
+    // Initialize speech synthesis for mobile
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+
+    if (!SpeechRecognition || !("speechSynthesis" in window)) {
   // Initialize speech recognition
   useEffect(() => {
     // Check for browser support
