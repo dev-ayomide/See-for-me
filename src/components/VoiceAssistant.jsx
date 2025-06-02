@@ -42,6 +42,7 @@ const VoiceAssistant = () => {
 
     const handleEnableVoice = () => {
       setIsEnabled(true);
+      hasSpokenWelcome.current = false;
     };
 
     if (!isEnabled) {
@@ -436,19 +437,18 @@ const VoiceAssistant = () => {
 
   // Speak welcome message and start listening on component mount
   useEffect(() => {
-    if (isSupported && !hasSpokenWelcome.current) {
-      hasSpokenWelcome.current = true
-      lastAnnouncedPage.current = location.pathname
+  if (isSupported && !hasSpokenWelcome.current && isEnabled) {
+    hasSpokenWelcome.current = true;
+    lastAnnouncedPage.current = location.pathname;
 
-      // Small delay to ensure component is fully mounted
-      setTimeout(() => {
-        const pageInfo = getCurrentPageInfo()
-        speak(
-          `Welcome to the accessibility assistant. ${pageInfo.description} Available commands: ${pageInfo.commands}`,
-        )
-      }, 1000)
-    }
-  }, [isSupported, speak, location.pathname, getCurrentPageInfo])
+    // No delay for instant speech
+    const pageInfo = getCurrentPageInfo();
+    speak(
+      `Welcome to the accessibility assistant. ${pageInfo.description} Available commands: ${pageInfo.commands}`,
+    );
+  }
+}, [isSupported, speak, location.pathname, getCurrentPageInfo, isEnabled]);
+
 
   // Auto-focus the button on page load
   useEffect(() => {
