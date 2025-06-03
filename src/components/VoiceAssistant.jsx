@@ -116,7 +116,7 @@ const VoiceAssistant = () => {
             "You are on the home page. Available options are navigation tools, color blindness tools, snap features, and upload functionality.",
           commands: "Say navigation, color blindness, snap, upload, or go back",
         }
-      case "/navigation":
+      case "/navigation-assistant":
         return {
           name: "navigation page",
           description:
