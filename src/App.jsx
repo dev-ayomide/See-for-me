@@ -70,7 +70,7 @@ function App() {
               }
             />
             <Route path="/upload" element={<><VoiceAssistant /><ImageUpload /></>} />
-            <Route path="/result" element={<><VoiceAssistant /><ImageResult /></>} />
+            <Route path="/result" element={<ImageResult />} />
             <Route path="/camera" element={<><VoiceAssistant /><CameraCapture /></>} />
             <Route
               path="/resources"
