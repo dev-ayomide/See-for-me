@@ -73,14 +73,3 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 - Voice Assistant is limited on iOS due to browser restrictions (speech output only, no voice input).
 - Camera navigation works best on mobile devices.
 
----
-
-## Contributing
-
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
-
----
-
-## License
-
-[MIT](LICENSE)
