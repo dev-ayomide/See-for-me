@@ -500,7 +500,7 @@ const VoiceAssistant = () => {
   if (!isEnabled) {
     return (
       <div className="fixed bottom-4 right-4 z-50">
-        <div className="bg-white shadow-lg rounded-lg p-4 border flex flex-col items-center">
+        <div className="shadow-lg rounded-lg p-4 border flex flex-col items-center">
           <Button
             onClick={handleEnableVoice}
             variant="default"
@@ -516,10 +516,10 @@ const VoiceAssistant = () => {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <div className="bg-white shadow-lg rounded-lg p-4 border">
+      <div className="bg-white dark:bg-gray-800 sepia:bg-amber-50 shadow-lg rounded-lg p-4 border">
         <div className="flex flex-col items-center space-y-3">
           <div className="text-center">
-            <h3 className="font-semibold text-gray-900">Voice Assistant</h3>
+            <h3 className="font-semibold">Voice Assistant</h3>
             <p className="text-sm text-gray-600">
               {isSpeaking ? "Speaking..." : isListening ? "Listening..." : "Ready to help"}
             </p>

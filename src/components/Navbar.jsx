@@ -17,7 +17,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0">
-            <Link to="/" className="flex items-center text-[#0057B7]">
+            <Link to="/" className="flex items-center dark:text-blue-400 light:text-[#0057B7] sepia:text-amber-700">
               <img
                 src={logo}
                 alt="Logo"
@@ -52,7 +52,7 @@ export default function Navbar() {
             >
               <FontAwesomeIcon
                 icon={isOpen ? faTimes : faBars}
-                className="text-2xl text-[#2667FF]"
+                className="text-2xl dark:text-blue-400 light:text-[#2667FF] sepia:text-amber-700"
               />
             </button>
           </div>
@@ -65,11 +65,11 @@ export default function Navbar() {
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="bg-white h-full w-full">
+        <div className="bg-white dark:bg-gray-800 sepia:bg-amber-50 h-full w-full">
           <div className="flex justify-between items-center p-4 border-b">
             <Link 
               to="/" 
-              className="flex items-center text-[#0057B7]"
+              className="flex items-center dark:text-blue-400 light:text-[#0057B7] sepia:text-amber-700"
               onClick={toggleMenu}
             >
               <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
@@ -82,7 +82,7 @@ export default function Navbar() {
             >
               <FontAwesomeIcon
                 icon={faTimes}
-                className="text-2xl text-[#2667FF]"
+                className="text-2xl dark:text-blue-400 light:text-[#2667FF] sepia:text-amber-700"
               />
             </button>
           </div>
