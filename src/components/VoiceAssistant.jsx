@@ -277,7 +277,7 @@ const VoiceAssistant = () => {
 
       if (lowerCommand.includes("navigation")) {
         speak("Navigating to navigation page. This page provides location and direction assistance.", () => {
-            window.open("/navigation-assistant");
+            navigate("/navigation-assistant");
         })
       } else if (lowerCommand.includes("color") || lowerCommand.includes("color blindness")) {
         speak(
