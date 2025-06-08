@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { Button } from "../components/ui/button"
 import { Mic, MicOff, X, Settings } from "lucide-react"
 import { useVoiceAssistant } from "./voice-assistant-context"
 
