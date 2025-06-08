@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { Button } from "../components/ui/button"
-import { Mic, MicOff, X, Settings } from "lucide-react"
+import { Mic, MicOff, X, Settings, Volume2 } from "lucide-react"
 import { useVoiceAssistant } from "./voice-assistant-context"
 
 // iOS detection utility
@@ -13,7 +13,7 @@ function isIOS() {
 
 // Main Voice Assistant Component
 const VoiceAssistant = () => {
-  const { isGloballyEnabled } = useVoiceAssistant()
+  const { isGloballyEnabled, setGloballyEnabled } = useVoiceAssistant()
   const [isMinimized, setIsMinimized] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
@@ -190,42 +190,6 @@ const VoiceAssistant = () => {
       window.speechSynthesis.speak(utterance)
     }, 100) // Reduced delay for faster response
   }, [stopListening, isGloballyEnabled, isSpeaking])
-
-  // Start listening function - only starts when not speaking
-  const startListening = useCallback(() => {
-    // Never start listening while speaking or processing speech
-    if (!recognitionRef.current || !isSupported || isSpeaking || isProcessingSpeech.current || !isGloballyEnabled) {
-      return
-    }
-
-    // Ensure we're completely stopped first
-    stopListening()
-
-    // Reduced delay for faster response
-    setTimeout(() => {
-      if (recognitionState.current === "stopped" && !isSpeaking && !isProcessingSpeech.current && isGloballyEnabled) {
-        try {
-          recognitionState.current = "starting"
-          setTranscript("")
-          recognitionRef.current.start()
-          setLastInteraction(Date.now())
-
-          // Set timeout for 15 seconds of silence
-          timeoutRef.current = setTimeout(() => {
-            if (recognitionState.current === "running" && !isSpeaking && isGloballyEnabled) {
-              speak(
-                "I'm still here to help. Say a command like navigation, color blindness, snap, upload, or say 'help' for more options.",
-              )
-            }
-          }, 15000)
-        } catch (error) {
-          console.error("Error starting recognition:", error)
-          recognitionState.current = "stopped"
-          setIsListening(false)
-        }
-      }
-    }, 200) // Reduced delay
-  }, [isSupported, isSpeaking, stopListening, isGloballyEnabled])
 
   // Simplified speech synthesis function with queue
   const speak = useCallback(
@@ -478,9 +442,42 @@ const VoiceAssistant = () => {
     }
   }
 
-  // Don't render anything if globally disabled
+  // Handle enabling voice assistant
+  const handleEnableVoiceAssistant = () => {
+    setGloballyEnabled(true)
+  }
+
+  // Show disabled state when voice assistant is off
   if (!isGloballyEnabled) {
-    return null
+    return (
+      <div className="fixed bottom-4 right-4 z-50 max-w-xs sm:max-w-sm">
+        <div className="bg-white dark:bg-gray-800 sepia:bg-amber-50 shadow-lg rounded-lg p-4 border">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">Voice Assistant</h3>
+            <div className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" />
+          </div>
+
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+            Voice assistant is currently disabled. Enable it to get voice navigation and assistance throughout the site.
+          </p>
+
+          <Button
+            onClick={handleEnableVoiceAssistant}
+            variant="default"
+            size="lg"
+            className="w-full"
+            aria-label="Enable voice assistant"
+          >
+            <Volume2 className="w-4 h-4 mr-2" />
+            Enable Voice Assistant
+          </Button>
+
+          <div className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+            Click to activate voice commands and navigation
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!isSupported) {
@@ -613,6 +610,14 @@ const VoiceAssistant = () => {
         {transcript && (
           <div className="text-xs text-gray-500 dark:text-gray-400 max-w-full text-center mb-3 bg-gray-50 dark:bg-gray-700 p-2 rounded-md">
             Last heard: "{transcript}"
+          </div>
+        )}
+
+        {showSettings && (
+          <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-2">
+            <Button onClick={() => setGloballyEnabled(false)} variant="destructive" size="sm" className="w-full">
+              Disable Voice Assistant
+            </Button>
           </div>
         )}
 
