@@ -35,6 +35,22 @@ const VoiceAssistant = () => {
   const isProcessingSpeech = useRef(false)
   const speechQueueRef = useRef([])
 
+  // Simplified speech synthesis function with queue
+  const speak = useCallback(
+    (text, callback) => {
+      if (!("speechSynthesis" in window) || !isGloballyEnabled) return
+
+      // Add to queue
+      speechQueueRef.current.push({ text, callback })
+
+      // Process queue if not already processing
+      if (!isProcessingSpeech.current && !isSpeaking) {
+        processSpeechQueue()
+      }
+    },
+    [isGloballyEnabled, isSpeaking, processSpeechQueue],
+  )
+
   // Get current page context
   const getCurrentPageInfo = useCallback(() => {
     const path = location.pathname
@@ -191,21 +207,41 @@ const VoiceAssistant = () => {
     }, 100) // Reduced delay for faster response
   }, [stopListening, isGloballyEnabled, isSpeaking])
 
-  // Simplified speech synthesis function with queue
-  const speak = useCallback(
-    (text, callback) => {
-      if (!("speechSynthesis" in window) || !isGloballyEnabled) return
+  // Start listening function - only starts when not speaking
+  const startListening = useCallback(() => {
+    // Never start listening while speaking or processing speech
+    if (!recognitionRef.current || !isSupported || isSpeaking || isProcessingSpeech.current || !isGloballyEnabled) {
+      return
+    }
 
-      // Add to queue
-      speechQueueRef.current.push({ text, callback })
+    // Ensure we're completely stopped first
+    stopListening()
 
-      // Process queue if not already processing
-      if (!isProcessingSpeech.current && !isSpeaking) {
-        processSpeechQueue()
+    // Reduced delay for faster response
+    setTimeout(() => {
+      if (recognitionState.current === "stopped" && !isSpeaking && !isProcessingSpeech.current && isGloballyEnabled) {
+        try {
+          recognitionState.current = "starting"
+          setTranscript("")
+          recognitionRef.current.start()
+          setLastInteraction(Date.now())
+
+          // Set timeout for 15 seconds of silence
+          timeoutRef.current = setTimeout(() => {
+            if (recognitionState.current === "running" && !isSpeaking && isGloballyEnabled) {
+              speak(
+                "I'm still here to help. Say a command like navigation, color blindness, snap, upload, or say 'help' for more options.",
+              )
+            }
+          }, 15000)
+        } catch (error) {
+          console.error("Error starting recognition:", error)
+          recognitionState.current = "stopped"
+          setIsListening(false)
+        }
       }
-    },
-    [isGloballyEnabled, isSpeaking, processSpeechQueue],
-  )
+    }, 200) // Reduced delay
+  }, [isSupported, isSpeaking, stopListening, isGloballyEnabled])
 
   // Process voice commands
   const processCommand = useCallback(
@@ -359,7 +395,6 @@ const VoiceAssistant = () => {
 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
-        timeoutRef.current = null
       }
 
       // Only speak error message for actual errors, not aborts
