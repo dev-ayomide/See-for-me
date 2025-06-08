@@ -752,7 +752,7 @@ const NavigationAssistant = () => {
         </button>
 
 
-        <div className="p-4 bg-slate-100 rounded-lg">
+        <div className="p-4 rounded-lg">
           <h3 className="font-medium mb-1">Status:</h3>
           <p className="mb-2">
             {isSpeaking
