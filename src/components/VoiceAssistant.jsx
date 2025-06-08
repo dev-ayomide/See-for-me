@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
-import { Button } from "../components/ui/button"
+import { Button } from "@/components/ui/button"
 import { Mic, MicOff, X, Settings } from "lucide-react"
 import { useVoiceAssistant } from "./voice-assistant-context"
 
@@ -24,8 +23,8 @@ const VoiceAssistant = () => {
   const [lastInteraction, setLastInteraction] = useState(Date.now())
 
   const buttonRef = useRef(null)
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate = () => {} // Replace with actual navigation function
+  const location = { pathname: "/" } // Replace with actual location object
   const recognitionRef = useRef(null)
   const timeoutRef = useRef(null)
   const reminderTimeoutRef = useRef(null)
