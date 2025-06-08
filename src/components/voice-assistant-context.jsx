@@ -24,6 +24,11 @@ export function VoiceAssistantProvider({ children }) {
     if (typeof window !== "undefined") {
       localStorage.setItem("voiceAssistantGloballyEnabled", JSON.stringify(isGloballyEnabled))
     }
+
+    // Cancel any ongoing speech when disabled
+    if (!isGloballyEnabled && typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel()
+    }
   }, [isGloballyEnabled])
 
   return (

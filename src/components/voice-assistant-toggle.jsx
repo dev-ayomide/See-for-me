@@ -12,7 +12,14 @@ export default function VoiceAssistantToggle({ variant = "default", size = "sm",
     // Cancel any ongoing speech when disabling
     if (isGloballyEnabled && "speechSynthesis" in window) {
       window.speechSynthesis.cancel()
+
+      // Clear any timeouts that might trigger speech
+      if (window.voiceAssistantTimeouts) {
+        window.voiceAssistantTimeouts.forEach((timeout) => clearTimeout(timeout))
+        window.voiceAssistantTimeouts = []
+      }
     }
+
     setGloballyEnabled(!isGloballyEnabled)
   }
 
