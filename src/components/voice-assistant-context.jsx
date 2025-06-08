@@ -4,19 +4,19 @@ import { createContext, useState, useContext, useEffect } from "react"
 
 // Create context for global voice assistant state
 const VoiceAssistantContext = createContext({
-  isGloballyEnabled: false, // Changed to false by default
+  isGloballyEnabled: true,
   setGloballyEnabled: () => {},
 })
 
 // Provider component to wrap around the application
 export function VoiceAssistantProvider({ children }) {
-  // Initialize state from localStorage if available, defaulting to FALSE
+  // Initialize state from localStorage if available
   const [isGloballyEnabled, setGloballyEnabled] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("voiceAssistantGloballyEnabled")
-      return saved !== null ? JSON.parse(saved) : false // Changed to false by default
+      return saved !== null ? JSON.parse(saved) : true
     }
-    return false // Changed to false by default
+    return true
   })
 
   // Save to localStorage whenever the state changes
