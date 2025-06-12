@@ -12,6 +12,7 @@ import { ThemeProvider } from "./context/theme-context"
 import ImageUpload from "./components/ImageUpload"
 import ImageResult from "./components/ImageResult"
 import CameraCapture from "./components/CameraCapture"
+import CameraCapturePage from "./components/CameraCapturePage"
 import ColorBlindnessResults from "./components/ColorBlindnessResults"
 import { SpeechProvider } from "./context/speech-context"
 import VoiceAssistant from "./components/VoiceAssistant"
@@ -81,6 +82,7 @@ function App() {
                   />
                   <Route path="/result" element={<ImageResult />} />
                   <Route path="/camera" element={<CameraCapture />} />
+                  <Route path="/camera-capture" element={<CameraCapturePage />} />
                   <Route
                     path="/resources"
                     element={

@@ -1,216 +1,157 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Download, Share2, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 export default function ColorBlindnessResults() {
   const location = useLocation();
-  const results = location.state?.results || [];
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("all");
-
-  const handleDownloadAll = () => {
-    simulations.forEach((sim) => {
-      const link = document.createElement("a");
-      link.href = sim.imageUrl;
-      link.download = `${sim.name.replace(/\s+/g, "_").toLowerCase()}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    });
-  };
-
-  const handleShare = () => {
-    // Check if Web Share API is supported
-    if (navigator.share) {
-      navigator
-        .share({
-          title: "Image Description",
-        })
-        .catch((error) => {
-          console.log("Error sharing:", error)
-        })
-    } else {
-      navigator.clipboard
-        .writeText(description)
-        .then(() => {
-          alert("Description copied to clipboard!")
-        })
-        .catch(() => {
-          alert("Failed to copy description")
-        })
-    }
-  }
+  const image = location.state?.originalImage;
+  const objects = location.state?.objects || [];
+  const imgRef = useRef(null);
+  const [imgDims, setImgDims] = useState({ width: 1, height: 1 });
 
   useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (imgRef.current) {
+      const updateDims = () => {
+        setImgDims({
+          width: imgRef.current.naturalWidth,
+          height: imgRef.current.naturalHeight,
+        });
+      };
+      imgRef.current.onload = updateDims;
+      if (imgRef.current.complete) updateDims();
+    }
+  }, [image]);
 
-  
+  // Helper to scale coordinates to displayed image size
+  const getScaled = (box) => {
+    const displayWidth = imgRef.current?.width || 1;
+    const displayHeight = imgRef.current?.height || 1;
+    return {
+      x: (box.x / imgDims.width) * displayWidth,
+      y: (box.y / imgDims.height) * displayHeight,
+      width: (box.width / imgDims.width) * displayWidth,
+      height: (box.height / imgDims.height) * displayHeight,
+    };
+  };
 
-  // If no results (user navigated directly), show fallback
-  if (!results.length) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <h2 className="text-xl font-medium mb-4">No results to display</h2>
-          <Link
-            to="/color-blindness-tools"
-            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Try Another
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Compose the simulations array from results
-  const simulations = [
-    {
-      id: "original",
-      name: "Original",
-      description: "How most people see your image",
-      imageUrl: location.state.originalImage || results[0]?.dataUrl,
-      filter: "",
-    },
-    ...results.map((r) => ({
-      id: r.type,
-      name:
-        r.type === "protanopia"
-          ? "Protanopia"
-          : r.type === "deuteranopia"
-          ? "Deuteranopia"
-          : r.type === "tritanopia"
-          ? "Tritanopia"
-          : r.type === "achromatopsia"
-          ? "Achromatopsia"
-          : r.type,
-      description:
-        r.type === "protanopia"
-          ? "Red-blind (1% of men)"
-          : r.type === "deuteranopia"
-          ? "Green-blind (1% of men)"
-          : r.type === "tritanopia"
-          ? "Blue-blind (rare)"
-          : r.type === "achromatopsia"
-          ? "Complete color blindness"
-          : "",
-      imageUrl: r.dataUrl,
-      filter: "",
-    })),
-  ];
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-t-blue-600 border-b-blue-600 border-l-transparent border-r-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-medium">Processing your image...</h2>
-          <p className="text-gray-500 mt-2">This may take a few moments</p>
-        </div>
-      </div>
-    );
-  }
+  // Get dot position (center of bounding box), clamped to image bounds
+  const getDotPosition = (box) => {
+    if (!imgRef.current) return { left: 0, top: 0, flip: false };
+    const rect = imgRef.current.getBoundingClientRect();
+    const displayWidth = imgRef.current.width;
+    const displayHeight = imgRef.current.height;
+    // Scale box to displayed image size
+    const x = (box.x / imgDims.width) * displayWidth;
+    const y = (box.y / imgDims.height) * displayHeight;
+    const w = (box.width / imgDims.width) * displayWidth;
+    const h = (box.height / imgDims.height) * displayHeight;
+    // Center of box
+    let left = x + w / 2;
+    let top = y + h / 2;
+    // Clamp so the overlay never goes outside the image
+    const descW = 120;
+    const dotW = 20;
+    let flip = false;
+    if (left + dotW + descW > displayWidth) {
+      flip = true;
+      left = Math.min(left, displayWidth - dotW);
+    }
+    left = Math.max(dotW, Math.min(left, displayWidth - dotW));
+    top = Math.max(16, Math.min(top, displayHeight - 16));
+    return { left, top, flip };
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-center mb-8">
-        Color Blindness Simulation Results
+        Color Identification Result
       </h1>
+      <div className="relative flex flex-col items-center gap-6" style={{ width: "100%" }}>
+        <div style={{ position: "relative", width: "100%", maxWidth: 600, minHeight: 360 }}>
+          <img
+            ref={imgRef}
+            src={image}
+            alt="Captured"
+            className="w-full rounded-lg border"
+            style={{ display: "block", maxHeight: 480, objectFit: "contain", background: "#f8fafc" }}
+          />
 
-      <div className="mb-8 flex flex-col m-auto justify-between items-center">
-        
-        <div className="flex gap-2">
-          <button
-            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
-            onClick={handleDownloadAll}
-          >
-            <Download className="mr-2 h-4 w-4" /> Download All
-          </button>
-          <button 
-          className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
-          onClick={handleShare}
-          aria-label="Share description">
-            <Share2 className="mr-2 h-4 w-4" /> Share
-          </button>
-          <Link
-            to="/color-blindness-tools"
-            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Try Another
-          </Link>
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex bg-gray-100 rounded-full p-1">
-            <button
-              className={`px-4 py-1 rounded-full text-sm ${
-                activeTab === "all" ? "bg-teal-500 text-white" : "text-gray-700"
-              }`}
-              onClick={() => setActiveTab("all")}
-            >
-              All
-            </button>
-            {simulations.map((sim) => (
-              <button
-                key={sim.id}
-                className={`px-4 py-1 rounded-full text-sm ${
-                  activeTab === sim.id
-                    ? "bg-teal-500 text-white"
-                    : "text-gray-700"
-                }`}
-                onClick={() => setActiveTab(sim.id)}
+          {/* Dots and always-visible descriptions inside the image */}
+          {objects.map((obj, idx) => {
+            const dot = getDotPosition(obj.box);
+            return (
+              <div
+                key={idx}
+                style={{
+                  position: "absolute",
+                  left: dot.left,
+                  top: dot.top,
+                  display: "flex",
+                  alignItems: "center",
+                  zIndex: 30,
+                  transform: dot.flip
+                    ? "translate(-100%, -50%)"
+                    : "translate(0, -50%)",
+                  maxWidth: "95%",
+                  pointerEvents: "auto",
+                }}
+                tabIndex={0}
+                aria-label={`Object: ${obj.object}, color: ${obj.color}`}
               >
-                {sim.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-        {activeTab === "all"
-          ? simulations.map((sim) => (
-              <div key={sim.id} className="border rounded-lg overflow-hidden">
-                <div className="">
-                  <img
-                    src={sim.imageUrl || "/placeholder.svg"}
-                    alt={`${sim.name} simulation`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-medium">{sim.name}</h3>
-                  <p className="text-sm text-gray-500">{sim.description}</p>
-                </div>
-              </div>
-            ))
-          : simulations
-              .filter((sim) => sim.id === activeTab)
-              .map((sim) => (
-                <div
-                  key={sim.id}
-                  className="border rounded-lg overflow-hidden col-span-full max-w-3xl mx-auto"
+                {/* Dot */}
+                <span
+                  style={{
+                    display: "block",
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    background: obj.hex,
+                    border: `2px solid #fff`,
+                    boxShadow: `0 0 0 2px ${obj.hex}55`,
+                    marginRight: dot.flip ? 0 : 6,
+                    marginLeft: dot.flip ? 6 : 0,
+                  }}
+                />
+                {/* Description always visible, beside the dot, smaller and visually appealing */}
+                <span
+                  style={{
+                    background: "rgba(255,255,255,0.96)",
+                    border: `1.5px solid ${obj.hex}`,
+                    color: "#222",
+                    padding: "3px 8px 3px 6px",
+                    borderRadius: "6px",
+                    fontSize: "0.85rem",
+                    fontWeight: 500,
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                    whiteSpace: "nowrap",
+                    maxWidth: 120,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    lineHeight: 1.2,
+                  }}
                 >
-                  <div className="">
-                    <img
-                      src={sim.imageUrl || "/placeholder.svg"}
-                      alt={`${sim.name} simulation`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-medium">{sim.name}</h3>
-                    <p className="text-sm text-gray-500">{sim.description}</p>
-                  </div>
-                </div>
-              ))}
+                  <span style={{ color: obj.hex, fontWeight: "bold", marginRight: 4 }}>⬤</span>
+                  <span>{obj.object}</span>
+                  <br />
+                  <span>
+                    <span style={{ color: obj.hex }}>{obj.color}</span>{" "}
+                    <span style={{ fontFamily: "monospace", fontSize: "0.8em" }}>{obj.hex}</span>
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <Link
+          to="/color-blindness-tools"
+          className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50 mt-4"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Try Another
+        </Link>
+      </div>
+      <div className="text-center mt-4 text-gray-600">
+        {objects.length === 0 && "No objects detected."}
+        {objects.length > 0 && "Each dot and description is shown inside the image."}
       </div>
     </div>
   );
