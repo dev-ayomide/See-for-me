@@ -41,10 +41,10 @@ export default function ColorBlindnessHome() {
 
       {/* Upload and Camera cards in grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mb-10">
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6 flex flex-col items-center justify-center">
+      <div className="border border-gray-200 rounded-xl shadow-md p-6 flex flex-col items-center justify-center">
         <ColorBlindnessUploader />
       </div>
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6 flex flex-col items-center justify-center">
+      <div className="border border-gray-200 rounded-xl shadow-md p-6 flex flex-col items-center justify-center">
         <Camera className="w-10 h-10 text-green-600 mb-3" />
         <span className="font-semibold text-lg mb-2">Camera</span>
         <button

@@ -17,13 +17,13 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0">
-            <Link to="/" className="flex items-center dark:text-blue-400 light:text-[#0057B7] sepia:text-amber-700">
+            <Link to="/" className="flex items-center light:text-blue-400 dark:text-blue-400  sepia:text-amber-700">
               <img
                 src={logo}
                 alt="Logo"
                 className="w-10 h-10 object-contain"
               />
-              <span className="ml-2 text-xl font-bold">SeeForMe</span>
+              <span className="ml-2 text-xl font-bold text-blue-600 dark:text-blue-400 sepia:text-amber-700">SeeForMe</span>
             </Link>
           </div>
 
@@ -76,7 +76,7 @@ export default function Navbar() {
               onClick={toggleMenu}
             >
               <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
-              <span className="ml-2 text-xl font-bold">SeeForMe</span>
+              <span className="ml-2 text-xl font-bold text-blue-600 dark:text-blue-400 sepia:text-amber-700">SeeForMe</span>
             </Link>
             <button 
               onClick={toggleMenu}

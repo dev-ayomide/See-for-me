@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import html2canvas from "html2canvas";
 
 export default function ColorBlindnessResults() {
   const location = useLocation();
@@ -61,13 +62,55 @@ export default function ColorBlindnessResults() {
     return { left, top, flip };
   };
 
+  // Download the annotated image
+  const handleDownload = async () => {
+    const container = document.getElementById("annotated-image-container");
+    if (!container) return;
+    const canvas = await html2canvas(container, { backgroundColor: null });
+    const link = document.createElement("a");
+    link.download = "colorblindness-result.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+
+  // Share the annotated image (Web Share API or copy to clipboard)
+  const handleShare = async () => {
+    const container = document.getElementById("annotated-image-container");
+    if (!container) return;
+    const canvas = await html2canvas(container, { backgroundColor: null });
+    canvas.toBlob(async (blob) => {
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], "colorblindness-result.png", { type: blob.type })] })) {
+        try {
+          await navigator.share({
+            files: [new File([blob], "colorblindness-result.png", { type: blob.type })],
+            title: "Color Blindness Result",
+            text: "Check out this annotated image!",
+          });
+        } catch (e) {
+          // User cancelled or error
+        }
+      } else if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          await navigator.clipboard.write([
+            new window.ClipboardItem({ [blob.type]: blob })
+          ]);
+          alert("Image copied to clipboard!");
+        } catch (e) {
+          alert("Unable to share or copy image.");
+        }
+      } else {
+        alert("Sharing is not supported on this device.");
+      }
+    }, "image/png");
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-center mb-8">
         Color Identification Result
       </h1>
       <div className="relative flex flex-col items-center gap-6" style={{ width: "100%" }}>
-        <div style={{ position: "relative", width: "100%", maxWidth: 600, minHeight: 360 }}>
+        <div id="annotated-image-container" style={{ position: "relative", width: "100%", maxWidth: 600, minHeight: 360 }}>
           <img
             ref={imgRef}
             src={image}
@@ -141,6 +184,20 @@ export default function ColorBlindnessResults() {
               </div>
             );
           })}
+        </div>
+        <div className="flex gap-4 mt-2">
+          <button
+            onClick={handleDownload}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+          >
+            Download Result
+          </button>
+          <button
+            onClick={handleShare}
+            className="px-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 transition-colors"
+          >
+            Share
+          </button>
         </div>
         <Link
           to="/color-blindness-tools"
